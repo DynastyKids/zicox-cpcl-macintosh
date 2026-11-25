@@ -1,0 +1,9 @@
+# Build outputs - run `make` locally
+build/
+ppd/Zicox_CC4.ppd
+
+# macOS / Python / test output
+.DS_Store
+__pycache__/
+*.ras
+*.cpcl
