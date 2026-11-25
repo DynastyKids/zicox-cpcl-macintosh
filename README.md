@@ -1,4 +1,4 @@
-# Zicox CC4 CPCL Driver for macOS
+# Zicox CPCL Driver for macOS — CC4 · CC2 · CC3 · M35 · HDT334
 
 [English](#english) | [中文](#中文)
 
@@ -6,23 +6,79 @@
 
 | Branch / 分支 | Printers / 打印机 | Status / 状态 |
 |---|---|---|
-| [**`main`**](https://github.com/DynastyKids/zicox-cpcl-macintosh/tree/main) ← you are here / 当前分支 | CC4 (4″) | Tested on a real printer / 已真机测试 |
-| [`untested`](https://github.com/DynastyKids/zicox-cpcl-macintosh/tree/untested) | CC4 (4″), CC2 (2″), CC3 (3″), M35 (3″), HDT334 (4″) | Same driver approach, **not tested on real printers** / 相同驱动方案，**未经真机测试** |
+| [`main`](https://github.com/DynastyKids/zicox-cpcl-macintosh/tree/main) | CC4 (4″) | Tested on a real printer / 已真机测试 |
+| [**`untested`**](https://github.com/DynastyKids/zicox-cpcl-macintosh/tree/untested) ← you are here / 当前分支 | CC4 (4″), CC2 (2″), CC3 (3″), M35 (3″), HDT334 (4″) | Same driver approach, **not tested on real printers** / 相同驱动方案，**未经真机测试** |
 
-To use the `untested` branch / 使用 `untested` 分支：
+Switch branches / 切换分支：
+```bash
+git checkout main        # tested CC4-only driver / 已测试的 CC4 驱动
+git checkout untested    # all models (this branch) / 全部型号（本分支）
+```
+
+> ⚠️ **Untested branch.** Only the **CC4** has been tested on a real printer. CC2, CC3, M35 and HDT334 use
+> the same driver approach, but their print-head and paper widths below are typical values for their class,
+> not vendor data. CC4 output on this branch is byte-for-byte identical to `main`. Please report results.
+>
+> ⚠️ **未测试分支。** 只有 **CC4** 经过真机测试。CC2、CC3、M35、HDT334 采用相同的驱动方案，但下表中的打印头
+> 和纸宽是同类机型的常见值，并非厂商资料。本分支的 CC4 输出与 `main` 逐字节一致。欢迎反馈测试结果。
+
+### Models / 型号
+
+| Model / 型号 | Class / 类别 | Print head / 打印头 | Max paper / 最大纸宽 | Default size / 默认尺寸 | Tested / 测试 |
+|---|---|---|---|---|---|
+| CC4 | 4″ | 104 mm (832 dots/点) | 104 mm | `Roll100mm` (4″) | ✅ |
+| HDT334 | 4″ | 104 mm (832 dots/点) | 104 mm | `Roll100mm` (4″) | ❌ |
+| CC3 | 3″ | 72 mm (576 dots/点) | 80 mm | `Roll75mm` (3″) | ❌ |
+| M35 | 3″ | 72 mm (576 dots/点) | 80 mm | `Roll75mm` (3″) | ❌ |
+| CC2 | 2″ | 48 mm (384 dots/点) | 58 mm | `Roll50mm` (2″) | ❌ |
+
+Paper sizes per model (special sizes first, then width-only continuous rolls) / 各型号纸张尺寸（先特殊尺寸，后按宽度区分的连续纸）：
+
+| Model / 型号 | Special sizes (W × H mm) / 特殊尺寸（宽 × 高 mm） | Continuous rolls (width) / 连续纸（宽度） |
+|---|---|---|
+| CC4, HDT334 | 50×25, 50×30, 50×80, 50×100 (2″×4″), 100×50 (4″×2″), 100×100 (4″×4″), 100×150 (4″×6″) | 50–100 mm, every 5 mm / 每 5mm（50 = 2″, 75 = 3″, 100 = 4″） |
+| CC3, M35 | 50×25, 50×30, 50×80, 50×100 (2″×4″), 75×50 (3″×2″), 75×75 (3″×3″), 75×100 (3″×4″) | 50–80 mm, every 5 mm / 每 5mm（50 = 2″, 75 = 3″） |
+| CC2 | 40×30, 50×25, 50×30, 50×40, 50×50, 50×80, 50×100 (2″×4″) | 30–55 mm every 5 mm / 每 5mm, + 58 mm（50 = 2″） |
+
+Paper wider than the print head is assumed to be centred on it: the PPD declares equal unprintable side
+margins and the filter crops both sides (e.g. 80 mm paper on a 72 mm head loses 4 mm per side). Narrower
+paper is left-aligned, as on the CC4; use "Horizontal Position / Offset" if your printer differs.
+纸宽大于打印头时，假定纸张居中于打印头：PPD 声明左右对称的不可打印边距，过滤器两侧对称裁剪
+（例如 80mm 纸配 72mm 打印头，每侧 4mm）。窄于打印头的纸按 CC4 的方式靠左；如果你的打印机不同，可用“横向位置/偏移”调整。
+
+Install one model at a time (run again for each printer) / 每次安装一个型号（每台打印机各运行一次）：
 ```bash
 git clone -b untested https://github.com/DynastyKids/zicox-cpcl-macintosh.git
-# or, in an existing clone / 或在已有的克隆中：
-git checkout untested
+cd zicox-cpcl-macintosh
+make                               # builds the filter, tools and all five PPDs / 构建过滤器、工具和全部 5 个 PPD
+./install.sh --model CC3           # CC4 (default), CC2, CC3, M35, HDT334
+./install.sh --model CC2 --bt-name "MyPrinter"   # if the Bluetooth name does not start with the model / 蓝牙名称不以型号开头时
 ```
+
+| Model / 型号 | Queues / 队列 | Bluetooth agent / 蓝牙中继 | Ports (print/control) / 端口（打印/控制） | `zicoxctl` |
+|---|---|---|---|---|
+| CC4 | `Zicox_CC4_USB`, `Zicox_CC4_BT` | `com.zicox.btrelay` | 9101 / 9102 | `zicoxctl status` |
+| CC2 | `Zicox_CC2_USB`, `Zicox_CC2_BT` | `com.zicox.btrelay.CC2` | 9111 / 9112 | `zicoxctl -m CC2 status` |
+| CC3 | `Zicox_CC3_USB`, `Zicox_CC3_BT` | `com.zicox.btrelay.CC3` | 9121 / 9122 | `zicoxctl -m CC3 status` |
+| M35 | `Zicox_M35_USB`, `Zicox_M35_BT` | `com.zicox.btrelay.M35` | 9131 / 9132 | `zicoxctl -m M35 status` |
+| HDT334 | `Zicox_HDT334_USB`, `Zicox_HDT334_BT` | `com.zicox.btrelay.HDT334` | 9141 / 9142 | `zicoxctl -m HDT334 status` |
+
+The USB queue is created when CUPS lists the printer as `usb://<maker>/<MODEL>`; the Bluetooth agent
+connects to the first paired device whose name starts with the model name (or `--bt-name`).
+`./uninstall.sh` removes all models.
+当 CUPS 识别到 `usb://<厂商>/<型号>` 时创建 USB 队列；蓝牙中继连接名称以型号开头（或 `--bt-name` 指定）的第一台已配对设备。
+`./uninstall.sh` 会移除全部型号。
+
+The sections below describe the CC4; other models work the same way with their own queue names and sizes.
+以下章节以 CC4 为例；其他型号的用法相同，只是队列名称和纸张尺寸不同。
 
 ---
 
 ## English
 
-A CUPS printer driver for the **Zicox CC4** 104 mm thermal printer (CPCL command set) on macOS,
-with **USB**, **Bluetooth** and **Wi-Fi** support. The protocol was implemented from the vendor's
-Android SDK and verified on a real CC4.
+A CUPS printer driver for **Zicox CPCL** thermal printers on macOS — the 4″ **CC4** (tested) and, on this
+branch, the CC2 (2″), CC3 / M35 (3″) and HDT334 (4″) (untested) — with **USB**, **Bluetooth** and **Wi-Fi**
+support. The protocol was implemented from the vendor's Android SDK and verified on a real CC4.
 
 > Unofficial project, not affiliated with Zicox.
 
@@ -31,7 +87,7 @@ Android SDK and verified on a real CC4.
 | File | Purpose |
 |---|---|
 | `src/rastertozicox.c` | CUPS filter: converts raster pages into CPCL `CG` bitmaps, optionally wrapped in the vendor's GZIP frame |
-| `tools/gen_ppd.py` | Generates the printer description `ppd/Zicox_CC4.ppd` (paper sizes, media tracking, darkness, speed …, with a Simplified Chinese UI) when you run `make` |
+| `tools/gen_ppd.py` | Generates the printer descriptions `ppd/Zicox_<MODEL>.ppd` for every model (paper sizes, media tracking, darkness, speed …, with a Simplified Chinese UI) when you run `make` |
 | `src/zicox-btrelay.m` | Bluetooth relay (`ZicoxBluetooth.app`): `127.0.0.1:9101/9102` ⇄ IOBluetooth RFCOMM (SPP) |
 | `src/zicoxctl.c` | Command-line tool: status, serial number, self-test, feed, raw send, text with built-in printer fonts |
 | `tools/cpcl_preview.py` | Renders a CPCL job to PNG so output can be checked without printing |
@@ -44,7 +100,7 @@ Android SDK and verified on a real CC4.
 ### Install
 
 ```bash
-git clone https://github.com/DynastyKids/zicox-cpcl-macintosh.git
+git clone -b untested https://github.com/DynastyKids/zicox-cpcl-macintosh.git
 cd zicox-cpcl-macintosh
 make
 ./install.sh                 # asks for the administrator password
@@ -186,8 +242,8 @@ cupsctl --debug-logging; tail -f /var/log/cups/error_log
 
 ## 中文
 
-适用于 **Zicox CC4** 104mm 热敏打印机（CPCL 指令集）的 macOS CUPS 驱动，支持 **USB / 蓝牙 / Wi-Fi**。
-协议依据厂商 Android SDK 实现，并已在 CC4 真机上验证。
+适用于 **Zicox CPCL** 热敏打印机的 macOS CUPS 驱动：4″ 的 **CC4**（已测试），以及本分支新增的 CC2（2″）、
+CC3 / M35（3″）、HDT334（4″）（未测试），支持 **USB / 蓝牙 / Wi-Fi**。协议依据厂商 Android SDK 实现，并已在 CC4 真机上验证。
 
 > 非官方项目，与 Zicox 无关联。
 
@@ -196,7 +252,7 @@ cupsctl --debug-logging; tail -f /var/log/cups/error_log
 | 文件 | 作用 |
 |---|---|
 | `src/rastertozicox.c` | CUPS 过滤器：把系统光栅页转为 CPCL `CG` 位图（可选厂商 GZIP 压缩帧） |
-| `tools/gen_ppd.py` | 运行 `make` 时生成打印机描述 `ppd/Zicox_CC4.ppd`（纸张尺寸、定位方式、浓度、速度等选项，含中文界面） |
+| `tools/gen_ppd.py` | 运行 `make` 时为每个型号生成打印机描述 `ppd/Zicox_<型号>.ppd`（纸张尺寸、定位方式、浓度、速度等选项，含中文界面） |
 | `src/zicox-btrelay.m` | 蓝牙中继（`ZicoxBluetooth.app`）：`127.0.0.1:9101/9102` ⇄ IOBluetooth RFCOMM（SPP） |
 | `src/zicoxctl.c` | 命令行工具：查状态、序列号、自检、走纸、发送原始指令、用打印机内置字库打字 |
 | `tools/cpcl_preview.py` | 把 CPCL 作业渲染成 PNG，不耗纸即可检查输出 |
@@ -209,7 +265,7 @@ cupsctl --debug-logging; tail -f /var/log/cups/error_log
 ### 安装
 
 ```bash
-git clone https://github.com/DynastyKids/zicox-cpcl-macintosh.git
+git clone -b untested https://github.com/DynastyKids/zicox-cpcl-macintosh.git
 cd zicox-cpcl-macintosh
 make
 ./install.sh                 # 会请求管理员密码

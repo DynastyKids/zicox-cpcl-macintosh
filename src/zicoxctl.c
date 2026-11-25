@@ -5,7 +5,9 @@
  *   zicoxctl [-d device|auto] [-n host[:port]] <command> [args]
  *
  * Targets:
- *   (default)          Bluetooth, via the ZicoxBluetooth agent's control port 127.0.0.1:9102
+ *   (default)          Bluetooth, via the ZicoxBluetooth agent's control port (CC4: 127.0.0.1:9102)
+ *   -m MODEL           CC4 (default), CC2, CC3, M35 or HDT334: picks that model's agent port
+ *                      and print head width (used by "text")
  *   -n host[:port]     Wi-Fi printer (port 9100) or another relay
  *   -d /dev/cu.XXX     a serial port (does not bring up Bluetooth links on current macOS)
  *
@@ -29,12 +31,20 @@
 
 #include <iconv.h>
 
+/* Per-model Bluetooth agent control port (see install.sh) and print head width in dots. */
+static const struct { const char *name; const char *ctl; int head; } models[] = {
+  { "CC4", "127.0.0.1:9102", 832 }, { "CC2", "127.0.0.1:9112", 384 }, { "CC3", "127.0.0.1:9122", 576 },
+  { "M35", "127.0.0.1:9132", 576 }, { "HDT334", "127.0.0.1:9142", 832 },
+};
+static int g_head = 832;
+static const char *g_ctl = "127.0.0.1:9102";
+
 static int open_target(const char *dev, const char *net)
 {
   if (net) {
     int fd = zc_tcp_connect(net, 9100);
     if (fd < 0) fprintf(stderr, "zicoxctl: cannot connect to %s%s\n", net,
-                        !strcmp(net, "127.0.0.1:9102") ? " (is the ZicoxBluetooth agent running? see README)" : "");
+                        !strcmp(net, g_ctl) ? " (is the ZicoxBluetooth agent running? see README)" : "");
     return fd;
   }
   char path[256];
@@ -151,8 +161,8 @@ static int cmd_text(int fd, int argc, char **argv)
   char head[512];
   int height = y + lines * lineh + 16;
   int hl = snprintf(head, sizeof(head),
-                    "! 0 200 200 %d 1\r\nPAGE-WIDTH 832\r\nML %d\r\nT ",
-                    height, lineh);
+                    "! 0 200 200 %d 1\r\nPAGE-WIDTH %d\r\nML %d\r\nT ",
+                    height, g_head, lineh);
 
   size_t fl;
   char *fontenc = convert(font, strlen(font), enc, &fl);
@@ -176,7 +186,7 @@ static int cmd_text(int fd, int argc, char **argv)
 
 static void usage(void)
 {
-  fputs("Usage: zicoxctl [-d device|auto] [-n host[:port]] status|sn|selftest|feed [gap|mark]|send FILE|text [opts] TEXT...\n"
+  fputs("Usage: zicoxctl [-m model] [-d device] [-n host[:port]] status|sn|selftest|feed [gap|mark]|send FILE|text [opts] TEXT...\n"
         "See README.md for the options of each command.\n", stderr);
 }
 
@@ -187,6 +197,16 @@ int main(int argc, char *argv[])
   for (; i < argc && argv[i][0] == '-' && argv[i][1]; i++) {
     if (!strcmp(argv[i], "-d") && i + 1 < argc) dev = argv[++i];
     else if (!strcmp(argv[i], "-n") && i + 1 < argc) net = argv[++i];
+    else if (!strcmp(argv[i], "-m") && i + 1 < argc) {
+      const char *m = argv[++i];
+      size_t k;
+      for (k = 0; k < sizeof(models) / sizeof(models[0]); k++)
+        if (!strcasecmp(m, models[k].name)) { g_ctl = models[k].ctl; g_head = models[k].head; break; }
+      if (k == sizeof(models) / sizeof(models[0])) {
+        fprintf(stderr, "zicoxctl: unknown model %s (CC4, CC2, CC3, M35, HDT334)\n", m);
+        return 2;
+      }
+    }
     else { usage(); return 2; }
   }
   if (i >= argc) { usage(); return 2; }
@@ -194,7 +214,7 @@ int main(int argc, char *argv[])
   int cargc = argc - i;
   char **cargv = argv + i;
 
-  if (!dev && !net) net = "127.0.0.1:9102";
+  if (!dev && !net) net = g_ctl;
   int fd = open_target(dev, net);
   if (fd < 0) return 1;
 

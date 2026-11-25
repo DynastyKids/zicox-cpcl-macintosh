@@ -1,6 +1,6 @@
 # Build outputs - run `make` locally
 build/
-ppd/Zicox_CC4.ppd
+ppd/
 
 # macOS / Python / test output
 .DS_Store

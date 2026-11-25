@@ -1,21 +1,26 @@
 #!/bin/bash
-# Remove the Zicox CC4 driver, its queues and the Bluetooth agent.
+# Remove the Zicox driver for all models (CC4, CC2, CC3, M35, HDT334): queues, Bluetooth agents and files.
 set -uo pipefail
 if [ "$(id -u)" -ne 0 ]; then
   exec sudo "$0" "$@"
 fi
 
-for q in Zicox_CC4_USB Zicox_CC4_BT Zicox_CC4_WiFi; do
-  lpstat -v "$q" >/dev/null 2>&1 && lpadmin -x "$q" && echo "removed queue $q"
+MODELS="CC4 CC2 CC3 M35 HDT334"
+CONSOLE_USER=$(stat -f %Su /dev/console)
+
+for m in $MODELS; do
+  for q in "Zicox_${m}_USB" "Zicox_${m}_BT" "Zicox_${m}_WiFi"; do
+    lpstat -v "$q" >/dev/null 2>&1 && lpadmin -x "$q" && echo "removed queue $q"
+  done
+  if [ "$m" = CC4 ]; then label=com.zicox.btrelay; else label="com.zicox.btrelay.$m"; fi
+  if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != root ]; then
+    launchctl bootout "gui/$(id -u "$CONSOLE_USER")/$label" 2>/dev/null
+  fi
+  rm -f "/Library/LaunchAgents/$label.plist" "/Library/Printers/PPDs/Contents/Resources/Zicox_$m.ppd"
 done
 
-CONSOLE_USER=$(stat -f %Su /dev/console)
-if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != root ]; then
-  launchctl bootout "gui/$(id -u "$CONSOLE_USER")/com.zicox.btrelay" 2>/dev/null
-fi
 launchctl bootout system/com.zicox.btrelay 2>/dev/null
-rm -f /Library/LaunchAgents/com.zicox.btrelay.plist /Library/LaunchDaemons/com.zicox.btrelay.plist
+rm -f /Library/LaunchDaemons/com.zicox.btrelay.plist
 rm -rf /Library/Printers/Zicox
-rm -f /Library/Printers/PPDs/Contents/Resources/Zicox_CC4.ppd
 rm -f /usr/local/bin/zicoxctl
-echo "Zicox CC4 driver removed."
+echo "Zicox driver removed."

@@ -28,6 +28,9 @@
  *   cupsInteger[8]  horizontal position: 0 left, 1 centred on the print head
  *   cupsInteger[9]  extra horizontal offset, in dots
  *   cupsInteger[10] 1 = width-only roll page size (set by PageSize): trim the blank tail
+ *   cupsInteger[11] print head width in dots (set by each model's PPD); 0 -> 832 (CC4).
+ *                   Pages wider than the head are cropped equally on both sides, since
+ *                   such paper is centred on the head (e.g. 80 mm paper on a 72 mm head).
  *
  * Build: cc -O2 -o rastertozicox rastertozicox.c -lcups -lz
  */
@@ -46,7 +49,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define HEAD_DOTS   832   /* 104 mm at 8 dots/mm */
+#define HEAD_DOTS   832   /* default: CC4, 104 mm at 8 dots/mm */
 #define BAND_ROWS   256   /* max rows per CG block */
 #define BLANK_SPLIT 16    /* blank-row run that ends a band */
 
@@ -229,8 +232,15 @@ static void emit_band(buf_t *out, const page_t *pg, unsigned y0, unsigned y1, un
   buf_put(out, "\r\n", 2);
 }
 
+static unsigned head_dots(const cups_page_header2_t *h)
+{
+  unsigned d = h->cupsInteger[11];
+  return (d >= 64 && d <= 2048) ? d : HEAD_DOTS;
+}
+
 static void emit_page(const cups_page_header2_t *h, page_t *pg)
 {
+  const unsigned head = head_dots(h);
   buf_t out = { 0 };
   unsigned media = h->cupsMediaType;
   unsigned darkness = h->cupsInteger[0];
@@ -260,10 +270,10 @@ static void emit_page(const cups_page_header2_t *h, page_t *pg)
     else top = top > 8 ? top - 8 : 0;
   }
 
-  if (center == 1 && pg->width < HEAD_DOTS) xoff += (HEAD_DOTS - pg->width) / 2;
-  if (xoff > HEAD_DOTS - 8) xoff = HEAD_DOTS - 8;
+  if (center == 1 && pg->width < head) xoff += (head - pg->width) / 2;
+  if (xoff > head - 8) xoff = head - 8;
   unsigned pagew = xoff + pg->bpl * 8;   /* CG blocks are whole bytes wide */
-  if (pagew > HEAD_DOTS) pagew = HEAD_DOTS;
+  if (pagew > head) pagew = head;
 
   buf_printf(&out, "! 0 200 200 %u 1\r\n", height - top);
   buf_printf(&out, "PAGE-WIDTH %u\r\n", pagew);
@@ -345,7 +355,9 @@ int main(int argc, char *argv[])
     }
 
     page_t pg;
-    pg.width = h.cupsWidth > HEAD_DOTS ? HEAD_DOTS : h.cupsWidth;
+    unsigned head = head_dots(&h);
+    pg.width = h.cupsWidth > head ? head : h.cupsWidth;
+    unsigned xskip = h.cupsWidth > head ? (h.cupsWidth - head) / 2 : 0;  /* centre crop */
     pg.height = h.cupsHeight;
     pg.bpl = (pg.width + 7) / 8;
     pg.bits = calloc((size_t)pg.bpl * pg.height, 1);
@@ -366,6 +378,7 @@ int main(int argc, char *argv[])
     for (unsigned y = 0; y < h.cupsHeight && !canceled; y++) {
       if (cupsRasterReadPixels(ras, line, h.cupsBytesPerLine) < 1) break;
       line_to_ink(&h, line, ink);
+      if (xskip) memmove(ink, ink + xskip, pg.width);
       unsigned char *row = pg.bits + (size_t)y * pg.bpl;
 
       if (dither == 1) {
