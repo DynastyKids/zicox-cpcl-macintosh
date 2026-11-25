@@ -2,6 +2,20 @@
 
 [English](#english) | [中文](#中文)
 
+### Branches / 分支
+
+| Branch / 分支 | Printers / 打印机 | Status / 状态 |
+|---|---|---|
+| [**`main`**](https://github.com/DynastyKids/zicox-cpcl-macintosh/tree/main) ← you are here / 当前分支 | CC4 (4″) | Tested on a real printer / 已真机测试 |
+| [`untested`](https://github.com/DynastyKids/zicox-cpcl-macintosh/tree/untested) | CC4 (4″), CC2 (2″), CC3 (3″), M35 (3″), HDT334 (4″) | Same driver approach, **not tested on real printers** / 相同驱动方案，**未经真机测试** |
+
+To use the `untested` branch / 使用 `untested` 分支：
+```bash
+git clone -b untested https://github.com/DynastyKids/zicox-cpcl-macintosh.git
+# or, in an existing clone / 或在已有的克隆中：
+git checkout untested
+```
+
 ---
 
 ## English
